@@ -8,6 +8,7 @@
   <title>教室環境モニター</title>
 
   <style>
+
     body {
       font-family: sans-serif;
       text-align: center;
@@ -92,9 +93,11 @@
       font-size: 14px;
       color: #777;
     }
+
   </style>
 
 </head>
+
 
 <body>
 
@@ -261,7 +264,7 @@ const APPS_SCRIPT_URL =
 
 // ==================================================
 // 教室・センサー情報
-// 今は動作確認用
+// 現在は動作確認用
 // ==================================================
 
 const CLASSROOM_ID =
@@ -302,7 +305,6 @@ let currentTemperature =
 
 let currentHumidity =
   null;
-
 
 let bleDevice =
   null;
@@ -703,16 +705,14 @@ function onDisconnected() {
 
 
 // ==================================================
-// ★ テスト送信
+// テスト送信
 //
-// センサーは不要。
 // 固定値
+// CO2：500
+// 温度：25.0
+// 湿度：50.0
 //
-// CO2        500
-// 温度       25.0
-// 湿度       50.0
-//
-// をApps Scriptへ送る。
+// をApps Scriptへ送信
 // ==================================================
 
 async function testSend() {
@@ -772,7 +772,12 @@ async function testSend() {
         mode:
           "no-cors",
 
-        credentials: "include",
+
+        // 学校Googleアカウントの
+        // 認証情報を送信
+        credentials:
+          "include",
+
 
         headers: {
 
@@ -847,7 +852,8 @@ async function sendToSpreadsheet() {
 
 
   // ----------------------------------------------
-  // 3つの値が揃っているか確認
+  // CO2・温度・湿度の3つが
+  // まだ揃っていなければ送信しない
   // ----------------------------------------------
 
   if (
@@ -870,6 +876,10 @@ async function sendToSpreadsheet() {
   }
 
 
+
+  // ----------------------------------------------
+  // 送信データ作成
+  // ----------------------------------------------
 
   const data = {
 
@@ -919,6 +929,17 @@ async function sendToSpreadsheet() {
 
         mode:
           "no-cors",
+
+
+        // ==========================================
+        // ★重要
+        //
+        // fukui-ed.jpのApps Scriptへ
+        // 認証情報を含めて送信
+        // ==========================================
+
+        credentials:
+          "include",
 
 
         headers: {
