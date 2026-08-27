@@ -26,7 +26,7 @@
     }
 
     #saveStatus {
-      margin: 10px;
+      margin: 15px;
       font-size: 16px;
       color: #555;
     }
@@ -34,7 +34,7 @@
     button {
       font-size: 20px;
       padding: 12px 30px;
-      margin: 20px;
+      margin: 10px;
       cursor: pointer;
     }
 
@@ -43,6 +43,7 @@
       justify-content: center;
       gap: 20px;
       flex-wrap: wrap;
+      margin-top: 20px;
     }
 
     .card {
@@ -80,75 +81,188 @@
     .error {
       color: red;
     }
+
+    .test-area {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #ccc;
+    }
+
+    .test-title {
+      font-size: 14px;
+      color: #777;
+    }
   </style>
+
 </head>
 
 <body>
 
-  <h1>教室環境モニター</h1>
 
-  <div id="status" class="disconnected">
+  <!-- ========================================
+       タイトル
+  ========================================= -->
+
+  <h1>
+    教室環境モニター
+  </h1>
+
+
+  <!-- ========================================
+       BLE接続状態
+  ========================================= -->
+
+  <div
+    id="status"
+    class="disconnected"
+  >
     BLEセンサー未接続
   </div>
 
-  <button id="connectButton" onclick="connectBLE()">
+
+  <!-- ========================================
+       BLE接続ボタン
+  ========================================= -->
+
+  <button
+    id="connectButton"
+    onclick="connectBLE()"
+  >
     センサーに接続
   </button>
 
-　<button onclick="testSend()">
-  テスト送信
-　</button>
-  
+
+  <!-- ========================================
+       センサー表示
+  ========================================= -->
+
   <div class="container">
 
-    <div class="card">
-      <div class="title">CO₂</div>
-      <div class="value">
-        <span id="co2">---</span>
-      </div>
-      <div>ppm</div>
-    </div>
+
+    <!-- CO2 -->
 
     <div class="card">
-      <div class="title">温度</div>
-      <div class="value">
-        <span id="temperature">---</span>
+
+      <div class="title">
+        CO₂
       </div>
-      <div>℃</div>
+
+      <div class="value">
+
+        <span id="co2">
+          ---
+        </span>
+
+      </div>
+
+      <div>
+        ppm
+      </div>
+
     </div>
 
+
+    <!-- 温度 -->
+
     <div class="card">
-      <div class="title">湿度</div>
-      <div class="value">
-        <span id="humidity">---</span>
+
+      <div class="title">
+        温度
       </div>
-      <div>%</div>
+
+      <div class="value">
+
+        <span id="temperature">
+          ---
+        </span>
+
+      </div>
+
+      <div>
+        ℃
+      </div>
+
     </div>
+
+
+    <!-- 湿度 -->
+
+    <div class="card">
+
+      <div class="title">
+        湿度
+      </div>
+
+      <div class="value">
+
+        <span id="humidity">
+          ---
+        </span>
+
+      </div>
+
+      <div>
+        %
+      </div>
+
+    </div>
+
 
   </div>
+
+
+  <!-- ========================================
+       最終更新
+  ========================================= -->
 
   <div id="updated">
     最終更新：---
   </div>
 
+
+  <!-- ========================================
+       スプレッドシート保存状態
+  ========================================= -->
+
   <div id="saveStatus">
     スプレッドシート保存：待機中
   </div>
 
+
+  <!-- ========================================
+       テスト送信
+  ========================================= -->
+
+  <div class="test-area">
+
+    <div class="test-title">
+      通信テスト
+    </div>
+
+    <button onclick="testSend()">
+      テスト送信
+    </button>
+
+  </div>
+
+
+
 <script>
 
-// ========================================
-// Apps Script
-// ========================================
+
+// ==================================================
+// Apps Script WebアプリURL
+// ==================================================
 
 const APPS_SCRIPT_URL =
   "https://script.google.com/a/macros/fukui-ed.jp/s/AKfycbxreLRigRk-XWqo2ivQbmjmnhjVSS7V2Iuz8W1HSI9owCBF2Pea4Ps5Rmhy5-3U6GkcbA/exec";
 
 
-// ========================================
+
+// ==================================================
 // 教室・センサー情報
-// 今はテスト用
-// ========================================
+// 今は動作確認用
+// ==================================================
 
 const CLASSROOM_ID =
   "TEST";
@@ -157,9 +271,10 @@ const SENSOR_ID =
   "AirSensor-Test01";
 
 
-// ========================================
+
+// ==================================================
 // BLE UUID
-// ========================================
+// ==================================================
 
 const SERVICE_UUID =
   "12345678-1234-1234-1234-123456789000";
@@ -174,63 +289,123 @@ const HUMIDITY_UUID =
   "12345678-1234-1234-1234-123456789003";
 
 
-// ========================================
-// 最新値
-// ========================================
 
-let currentCO2 = null;
-let currentTemperature = null;
-let currentHumidity = null;
+// ==================================================
+// 最新のセンサー値
+// ==================================================
 
-let bleDevice = null;
+let currentCO2 =
+  null;
+
+let currentTemperature =
+  null;
+
+let currentHumidity =
+  null;
 
 
-// ========================================
+let bleDevice =
+  null;
+
+
+
+// ==================================================
 // BLE接続
-// ========================================
+// ==================================================
 
 async function connectBLE() {
 
+
   const status =
-    document.getElementById("status");
+    document.getElementById(
+      "status"
+    );
+
 
   const button =
-    document.getElementById("connectButton");
+    document.getElementById(
+      "connectButton"
+    );
+
 
   try {
 
+
+    // ----------------------------------------------
+    // Web Bluetooth対応確認
+    // ----------------------------------------------
+
     if (!navigator.bluetooth) {
+
 
       status.textContent =
         "このブラウザではWeb Bluetoothが利用できません。";
 
+
       status.className =
         "error";
 
+
       return;
+
     }
+
+
 
     status.textContent =
       "センサーを検索しています...";
 
+
+    status.className =
+      "disconnected";
+
+
+
+    // ----------------------------------------------
+    // BLE機器検索
+    // Service UUIDでESP32を検索
+    // ----------------------------------------------
+
     bleDevice =
       await navigator.bluetooth.requestDevice({
 
+
         filters: [
+
           {
+
             services: [
+
               SERVICE_UUID
+
             ]
+
           }
+
         ]
 
+
       });
+
+
 
     status.textContent =
       "ESP32へ接続しています...";
 
+
+
+    // ----------------------------------------------
+    // GATT接続
+    // ----------------------------------------------
+
     const server =
       await bleDevice.gatt.connect();
+
+
+
+    // ----------------------------------------------
+    // Service取得
+    // ----------------------------------------------
 
     const service =
       await server.getPrimaryService(
@@ -238,263 +413,541 @@ async function connectBLE() {
       );
 
 
-    // -------------------------------
+
+    // ==================================================
     // CO2
-    // -------------------------------
+    // ==================================================
 
     const co2Characteristic =
       await service.getCharacteristic(
         CO2_UUID
       );
 
+
     await co2Characteristic
       .startNotifications();
 
+
+
     co2Characteristic.addEventListener(
+
       "characteristicvaluechanged",
+
       event => {
 
+
         const value =
-          readText(event);
+          readText(
+            event
+          );
+
 
         currentCO2 =
-          Number(value);
+          Number(
+            value
+          );
+
 
         document
-          .getElementById("co2")
+          .getElementById(
+            "co2"
+          )
           .textContent =
           value;
 
+
         updateTime();
+
+
       }
+
     );
 
 
-    // -------------------------------
-    // Temperature
-    // -------------------------------
+
+    // ==================================================
+    // 温度
+    // ==================================================
 
     const temperatureCharacteristic =
       await service.getCharacteristic(
         TEMPERATURE_UUID
       );
 
+
     await temperatureCharacteristic
       .startNotifications();
 
+
+
     temperatureCharacteristic.addEventListener(
+
       "characteristicvaluechanged",
+
       event => {
 
+
         const value =
-          readText(event);
+          readText(
+            event
+          );
+
 
         currentTemperature =
-          Number(value);
+          Number(
+            value
+          );
+
 
         document
-          .getElementById("temperature")
+          .getElementById(
+            "temperature"
+          )
           .textContent =
           value;
 
+
         updateTime();
+
+
       }
+
     );
 
 
-    // -------------------------------
-    // Humidity
-    // -------------------------------
+
+    // ==================================================
+    // 湿度
+    // ==================================================
 
     const humidityCharacteristic =
       await service.getCharacteristic(
         HUMIDITY_UUID
       );
 
+
     await humidityCharacteristic
       .startNotifications();
 
+
+
     humidityCharacteristic.addEventListener(
+
       "characteristicvaluechanged",
+
       event => {
 
+
         const value =
-          readText(event);
+          readText(
+            event
+          );
+
 
         currentHumidity =
-          Number(value);
+          Number(
+            value
+          );
+
 
         document
-          .getElementById("humidity")
+          .getElementById(
+            "humidity"
+          )
           .textContent =
           value;
 
+
         updateTime();
+
+
       }
+
     );
 
+
+
+    // ==================================================
+    // 接続完了
+    // ==================================================
 
     status.textContent =
       "● センサー接続済み";
 
+
     status.className =
       "connected";
+
 
     button.textContent =
       "接続済み";
 
+
+
+    // ----------------------------------------------
+    // 切断検知
+    // ----------------------------------------------
+
     bleDevice.addEventListener(
+
       "gattserverdisconnected",
+
       onDisconnected
+
     );
+
 
   }
 
+
   catch (error) {
 
-    console.error(error);
+
+    console.error(
+      error
+    );
+
 
     status.textContent =
       "接続エラー：" +
       error.message;
 
+
     status.className =
       "error";
+
+
   }
+
+
 }
 
 
-// ========================================
-// BLE文字列読み取り
-// ========================================
+
+// ==================================================
+// BLEデータを文字列へ変換
+// ==================================================
 
 function readText(event) {
+
 
   return new TextDecoder()
     .decode(
       event.target.value
     );
+
+
 }
 
 
-// ========================================
-// 表示更新時刻
-// ========================================
+
+// ==================================================
+// BLEデータ更新時刻
+// ==================================================
 
 function updateTime() {
+
 
   const now =
     new Date();
 
+
   document
-    .getElementById("updated")
+    .getElementById(
+      "updated"
+    )
     .textContent =
-    "最終更新：" +
-    now.toLocaleTimeString(
-      "ja-JP"
-    );
+
+      "最終更新：" +
+
+      now.toLocaleTimeString(
+        "ja-JP"
+      );
+
+
 }
 
 
-// ========================================
-// BLE切断
-// ========================================
+
+// ==================================================
+// BLE切断時
+// ==================================================
 
 function onDisconnected() {
 
-  document
-    .getElementById("status")
-    .textContent =
+
+  const status =
+    document.getElementById(
+      "status"
+    );
+
+
+  status.textContent =
     "センサーとの接続が切れました";
 
-  document
-    .getElementById("status")
-    .className =
+
+  status.className =
     "error";
 
+
   document
-    .getElementById("connectButton")
+    .getElementById(
+      "connectButton"
+    )
     .textContent =
     "再接続";
+
+
 }
 
 
-// ========================================
-// スプレッドシートへ送信
-// ========================================
 
-async function sendToSpreadsheet() {
+// ==================================================
+// ★ テスト送信
+//
+// センサーは不要。
+// 固定値
+//
+// CO2        500
+// 温度       25.0
+// 湿度       50.0
+//
+// をApps Scriptへ送る。
+// ==================================================
+
+async function testSend() {
+
 
   const saveStatus =
     document.getElementById(
       "saveStatus"
     );
 
-  // まだ3つの値が揃っていない場合
-  if (
-    currentCO2 === null ||
-    currentTemperature === null ||
-    currentHumidity === null
-  ) {
 
-    saveStatus.textContent =
-      "スプレッドシート保存：測定値待機中";
+  const testData = {
 
-    return;
-  }
-
-
-  const data = {
 
     classroomId:
-      CLASSROOM_ID,
+      "TEST",
+
 
     sensorId:
-      SENSOR_ID,
+      "AirSensor-Test01",
+
 
     co2:
-      currentCO2,
+      500,
+
 
     temperature:
-      currentTemperature,
+      25.0,
+
 
     humidity:
-      currentHumidity
+      50.0
+
 
   };
 
 
   try {
 
+
+    saveStatus.textContent =
+      "テストデータ送信中...";
+
+
+
+    await fetch(
+
+      APPS_SCRIPT_URL,
+
+      {
+
+
+        method:
+          "POST",
+
+
+        mode:
+          "no-cors",
+
+
+        headers: {
+
+          "Content-Type":
+            "text/plain;charset=utf-8"
+
+        },
+
+
+        body:
+          JSON.stringify(
+            testData
+          )
+
+
+      }
+
+    );
+
+
+
+    saveStatus.textContent =
+      "テスト送信処理を実行しました";
+
+
+    alert(
+      "テスト送信処理を実行しました"
+    );
+
+
+  }
+
+
+  catch (error) {
+
+
+    console.error(
+      error
+    );
+
+
+    saveStatus.textContent =
+      "送信エラー：" +
+      error.message;
+
+
+    alert(
+      "送信エラー：" +
+      error.message
+    );
+
+
+  }
+
+
+}
+
+
+
+// ==================================================
+// 実際のセンサーデータを
+// スプレッドシートへ送信
+// ==================================================
+
+async function sendToSpreadsheet() {
+
+
+  const saveStatus =
+    document.getElementById(
+      "saveStatus"
+    );
+
+
+  // ----------------------------------------------
+  // 3つの値が揃っているか確認
+  // ----------------------------------------------
+
+  if (
+
+    currentCO2 === null ||
+
+    currentTemperature === null ||
+
+    currentHumidity === null
+
+  ) {
+
+
+    saveStatus.textContent =
+      "スプレッドシート保存：測定値待機中";
+
+
+    return;
+
+  }
+
+
+
+  const data = {
+
+
+    classroomId:
+      CLASSROOM_ID,
+
+
+    sensorId:
+      SENSOR_ID,
+
+
+    co2:
+      currentCO2,
+
+
+    temperature:
+      currentTemperature,
+
+
+    humidity:
+      currentHumidity
+
+
+  };
+
+
+
+  try {
+
+
     saveStatus.textContent =
       "スプレッドシートへ送信中...";
 
 
+
     await fetch(
+
       APPS_SCRIPT_URL,
+
       {
 
-        method: "POST",
 
-        mode: "no-cors",
+        method:
+          "POST",
+
+
+        mode:
+          "no-cors",
+
 
         headers: {
+
           "Content-Type":
             "text/plain;charset=utf-8"
+
         },
 
+
         body:
-          JSON.stringify(data)
+          JSON.stringify(
+            data
+          )
+
 
       }
+
     );
+
 
 
     const now =
       new Date();
 
+
     saveStatus.textContent =
+
       "スプレッドシート保存：" +
+
       now.toLocaleTimeString(
         "ja-JP"
       );
@@ -502,27 +955,43 @@ async function sendToSpreadsheet() {
 
   }
 
+
   catch (error) {
 
-    console.error(error);
+
+    console.error(
+      error
+    );
+
 
     saveStatus.textContent =
       "保存エラー：" +
       error.message;
+
+
   }
+
+
 }
 
 
-// ========================================
-// 1分ごとに保存
-// ========================================
+
+// ==================================================
+// 1分ごとにスプレッドシートへ保存
+// ==================================================
 
 setInterval(
+
   sendToSpreadsheet,
+
   60000
+
 );
+
 
 </script>
 
+
 </body>
+
 </html>
