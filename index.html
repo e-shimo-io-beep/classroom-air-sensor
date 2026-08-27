@@ -94,6 +94,19 @@
       color: #777;
     }
 
+    .wbgt-risk {
+      margin-top: 10px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .wbgt-note {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #666;
+      line-height: 1.5;
+    }
+
   </style>
 
 </head>
@@ -211,6 +224,40 @@
     </div>
 
 
+    <!-- 推定WBGT -->
+
+    <div class="card">
+
+      <div class="title">
+        推定WBGT
+      </div>
+
+      <div class="value">
+
+        <span id="wbgt">
+          ---
+        </span>
+
+      </div>
+
+      <div>
+        ℃
+      </div>
+
+      <div
+        id="wbgtRisk"
+        class="wbgt-risk"
+      >
+        ---
+      </div>
+
+      <div class="wbgt-note">
+        温度・湿度から算出した参考値です
+      </div>
+
+    </div>
+
+
   </div>
 
 
@@ -305,6 +352,12 @@ let currentTemperature =
 
 let currentHumidity =
   null;
+
+let currentWBGT =
+  null;
+
+let currentWBGTRisk =
+  "";
 
 let bleDevice =
   null;
@@ -458,6 +511,8 @@ async function connectBLE() {
           value;
 
 
+        updateWBGT();
+
         updateTime();
 
 
@@ -509,6 +564,8 @@ async function connectBLE() {
           value;
 
 
+        updateWBGT();
+
         updateTime();
 
 
@@ -559,6 +616,8 @@ async function connectBLE() {
           .textContent =
           value;
 
+
+        updateWBGT();
 
         updateTime();
 
@@ -638,6 +697,102 @@ function readText(event) {
       event.target.value
     );
 
+
+}
+
+
+
+// ==================================================
+// 推定WBGT計算
+//
+// 温度 T[℃] と相対湿度 RH[%] から算出する近似値。
+// 黒球温度を使用しないため、正式なWBGT測定値ではなく
+// 教室内の暑熱環境を把握するための参考値として扱う。
+// ==================================================
+
+function updateWBGT() {
+
+  if (
+    currentTemperature === null ||
+    currentHumidity === null
+  ) {
+
+    return;
+
+  }
+
+
+  const T =
+    currentTemperature;
+
+  const RH =
+    currentHumidity;
+
+
+  const wbgt =
+    0.735 * T +
+    0.0374 * RH +
+    0.00292 * T * RH -
+    4.064;
+
+
+  currentWBGT =
+    Math.round(wbgt * 10) / 10;
+
+
+  let risk = "";
+
+
+  if (currentWBGT < 21) {
+
+    risk =
+      "ほぼ安全";
+
+  }
+  else if (currentWBGT < 25) {
+
+    risk =
+      "注意";
+
+  }
+  else if (currentWBGT < 28) {
+
+    risk =
+      "警戒";
+
+  }
+  else if (currentWBGT < 31) {
+
+    risk =
+      "厳重警戒";
+
+  }
+  else {
+
+    risk =
+      "運動は原則中止";
+
+  }
+
+
+  currentWBGTRisk =
+    risk;
+
+
+  document
+    .getElementById(
+      "wbgt"
+    )
+    .textContent =
+    currentWBGT.toFixed(1);
+
+
+  document
+    .getElementById(
+      "wbgtRisk"
+    )
+    .textContent =
+    risk;
 
 }
 
@@ -744,7 +899,15 @@ async function testSend() {
 
 
     humidity:
-      50.0
+      50.0,
+
+
+    wbgt:
+      21.6,
+
+
+    wbgtRisk:
+      "注意"
 
 
   };
@@ -862,7 +1025,9 @@ async function sendToSpreadsheet() {
 
     currentTemperature === null ||
 
-    currentHumidity === null
+    currentHumidity === null ||
+
+    currentWBGT === null
 
   ) {
 
@@ -901,7 +1066,15 @@ async function sendToSpreadsheet() {
 
 
     humidity:
-      currentHumidity
+      currentHumidity,
+
+
+    wbgt:
+      currentWBGT,
+
+
+    wbgtRisk:
+      currentWBGTRisk
 
 
   };
