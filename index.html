@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>教室環境モニター</title>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 30px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    #status {
+      margin: 20px;
+      font-size: 18px;
+    }
+
+    button {
+      font-size: 20px;
+      padding: 12px 30px;
+      margin: 20px;
+      cursor: pointer;
+    }
+
+    .container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .card {
+      background: white;
+      width: 220px;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .title {
+      font-size: 20px;
+    }
+
+    .value {
+      font-size: 42px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    #updated {
+      margin-top: 25px;
+      color: #555;
+    }
+
+    .connected {
+      color: green;
+      font-weight: bold;
+    }
+
+    .disconnected {
+      color: #555;
+    }
+
+    .error {
+      color: red;
+    }
+  </style>
+
+</head>
+
+<body>
+
+<h1>教室環境モニター</h1>
+
+<div id="status" class="disconnected">
+  BLEセンサー未接続
+</div>
+
+<button id="connectButton" onclick="connectBLE()">
+  センサーに接続
+</button>
+
+
+<div class="container">
+
+  <div class="card">
+
+    <div class="title">
+      CO₂
+    </div>
+
+    <div class="value">
+      <span id="co2">---</span>
+    </div>
+
+    <div>
+      ppm
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="title">
+      温度
+    </div>
+
+    <div class="value">
+      <span id="temperature">---</span>
+    </div>
+
+    <div>
+      ℃
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="title">
+      湿度
+    </div>
+
+    <div class="value">
+      <span id="humidity">---</span>
+    </div>
+
+    <div>
+      %
+    </div>
+
+  </div>
+
+</div>
+
+
+<div id="updated">
+  最終更新：---
+</div>
+
+
+<script>
+
+// ========================================
+// ESP32側で設定したUUID
+// ========================================
+
+const SERVICE_UUID =
+  "12345678-1234-1234-1234-123456789000";
+
+const CO2_UUID =
+  "12345678-1234-1234-1234-123456789001";
+
+const TEMPERATURE_UUID =
+  "12345678-1234-1234-1234-123456789002";
+
+const HUMIDITY_UUID =
+  "12345678-1234-1234-1234-123456789003";
+
+
+let bleDevice = null;
+
+
+// ========================================
+// BLE接続
+// ========================================
+
+async function connectBLE() {
+
+  const status =
+    document.getElementById("status");
+
+  const button =
+    document.getElementById("connectButton");
+
+  try {
+
+    // Web Bluetooth対応確認
+    if (!navigator.bluetooth) {
+
+      status.textContent =
+        "このブラウザではWeb Bluetoothが利用できません。";
+
+      status.className = "error";
+
+      return;
+    }
+
+
+    status.textContent =
+      "センサーを検索しています...";
+
+    status.className =
+      "disconnected";
+
+
+    // ----------------------------------------
+    // Bluetooth機器選択
+    // ----------------------------------------
+
+    bleDevice =
+      await navigator.bluetooth.requestDevice({
+
+        filters: [
+          {
+            name: "Classroom-AirSensor"
+          }
+        ],
+
+        optionalServices: [
+          SERVICE_UUID
+        ]
+
+      });
+
+
+    status.textContent =
+      "ESP32へ接続しています...";
+
+
+    // ----------------------------------------
+    // ESP32へGATT接続
+    // ----------------------------------------
+
+    const server =
+      await bleDevice.gatt.connect();
+
+
+    // ----------------------------------------
+    // Air Sensor Service取得
+    // ----------------------------------------
+
+    const service =
+      await server.getPrimaryService(
+        SERVICE_UUID
+      );
+
+
+    // ========================================
+    // CO2
+    // ========================================
+
+    const co2Characteristic =
+      await service.getCharacteristic(
+        CO2_UUID
+      );
+
+    await co2Characteristic
+      .startNotifications();
+
+    co2Characteristic
+      .addEventListener(
+        "characteristicvaluechanged",
+        event => {
+
+          const value =
+            readText(event);
+
+          document
+            .getElementById("co2")
+            .textContent = value;
+
+          updateTime();
+
+        }
+      );
+
+
+    // ========================================
+    // 温度
+    // ========================================
+
+    const temperatureCharacteristic =
+      await service.getCharacteristic(
+        TEMPERATURE_UUID
+      );
+
+    await temperatureCharacteristic
+      .startNotifications();
+
+    temperatureCharacteristic
+      .addEventListener(
+        "characteristicvaluechanged",
+        event => {
+
+          const value =
+            readText(event);
+
+          document
+            .getElementById("temperature")
+            .textContent = value;
+
+          updateTime();
+
+        }
+      );
+
+
+    // ========================================
+    // 湿度
+    // ========================================
+
+    const humidityCharacteristic =
+      await service.getCharacteristic(
+        HUMIDITY_UUID
+      );
+
+    await humidityCharacteristic
+      .startNotifications();
+
+    humidityCharacteristic
+      .addEventListener(
+        "characteristicvaluechanged",
+        event => {
+
+          const value =
+            readText(event);
+
+          document
+            .getElementById("humidity")
+            .textContent = value;
+
+          updateTime();
+
+        }
+      );
+
+
+    // ----------------------------------------
+    // 接続完了
+    // ----------------------------------------
+
+    status.textContent =
+      "● Classroom-AirSensor 接続済み";
+
+    status.className =
+      "connected";
+
+    button.textContent =
+      "接続済み";
+
+
+    // ----------------------------------------
+    // BLE切断検知
+    // ----------------------------------------
+
+    bleDevice.addEventListener(
+      "gattserverdisconnected",
+      onDisconnected
+    );
+
+  }
+
+  catch(error) {
+
+    console.error(error);
+
+    status.textContent =
+      "接続エラー：" + error.message;
+
+    status.className =
+      "error";
+
+  }
+
+}
+
+
+// ========================================
+// BLE切断時
+// ========================================
+
+function onDisconnected() {
+
+  const status =
+    document.getElementById("status");
+
+  status.textContent =
+    "センサーとの接続が切れました";
+
+  status.className =
+    "error";
+
+  document
+    .getElementById("connectButton")
+    .textContent =
+    "再接続";
+
+}
+
+
+// ========================================
+// BLEデータを文字列として読み取る
+// ========================================
+
+function readText(event) {
+
+  return new TextDecoder()
+    .decode(event.target.value);
+
+}
+
+
+// ========================================
+// 最終更新時刻
+// ========================================
+
+function updateTime() {
+
+  const now =
+    new Date();
+
+  document
+    .getElementById("updated")
+    .textContent =
+      "最終更新：" +
+      now.toLocaleTimeString(
+        "ja-JP"
+      );
+
+}
+
+</script>
+
+</body>
+
+</html>
