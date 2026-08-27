@@ -33,26 +33,32 @@
     }
 
     button {
-      font-size: 20px;
-      padding: 12px 30px;
-      margin: 10px;
+      font-size: 15px;
+      padding: 8px 18px;
+      margin: 8px;
       cursor: pointer;
     }
 
     .container {
-      display: flex;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
       gap: 20px;
-      flex-wrap: wrap;
-      margin-top: 20px;
+      width: min(760px, 100%);
+      margin: 20px auto 0;
     }
 
     .card {
       background: white;
-      width: 220px;
       padding: 25px;
       border-radius: 15px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      min-height: 180px;
+    }
+
+    @media (max-width: 560px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
     }
 
     .title {
@@ -94,7 +100,8 @@
       color: #777;
     }
 
-    .wbgt-risk {
+    .wbgt-risk,
+    .co2-risk {
       margin-top: 10px;
       font-size: 22px;
       font-weight: bold;
@@ -173,6 +180,13 @@
 
       <div>
         ppm
+      </div>
+
+      <div
+        id="co2Risk"
+        class="co2-risk"
+      >
+        ---
       </div>
 
     </div>
@@ -347,6 +361,9 @@ const HUMIDITY_UUID =
 let currentCO2 =
   null;
 
+let currentCO2Risk =
+  "";
+
 let currentTemperature =
   null;
 
@@ -510,6 +527,8 @@ async function connectBLE() {
           .textContent =
           value;
 
+
+        updateCO2Risk();
 
         updateWBGT();
 
@@ -697,6 +716,61 @@ function readText(event) {
       event.target.value
     );
 
+
+}
+
+
+
+// ==================================================
+// CO2濃度の判定
+// ==================================================
+
+function updateCO2Risk() {
+
+  if (currentCO2 === null) {
+    return;
+  }
+
+
+  let risk = "";
+
+
+  if (currentCO2 < 1000) {
+
+    risk =
+      "良好";
+
+  }
+  else if (currentCO2 < 1500) {
+
+    risk =
+      "換気推奨";
+
+  }
+  else if (currentCO2 < 2000) {
+
+    risk =
+      "換気必要";
+
+  }
+  else {
+
+    risk =
+      "要注意";
+
+  }
+
+
+  currentCO2Risk =
+    risk;
+
+
+  document
+    .getElementById(
+      "co2Risk"
+    )
+    .textContent =
+    risk;
 
 }
 
@@ -894,6 +968,10 @@ async function testSend() {
       500,
 
 
+    co2Risk:
+      "良好",
+
+
     temperature:
       25.0,
 
@@ -1059,6 +1137,10 @@ async function sendToSpreadsheet() {
 
     co2:
       currentCO2,
+
+
+    co2Risk:
+      currentCO2Risk,
 
 
     temperature:
