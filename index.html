@@ -1254,16 +1254,85 @@ async function sendToSpreadsheet() {
 
 
 // ==================================================
-// 1分ごとにスプレッドシートへ保存
+// 時計の5分区切りに合わせてスプレッドシートへ保存
+//
+// 例：9:00、9:05、9:10、9:15 ...
+// 秒単位ではブラウザや通信状況により多少ずれる場合があります。
 // ==================================================
 
-setInterval(
+function startScheduledSave() {
 
-  sendToSpreadsheet,
+  const now =
+    new Date();
 
-  60000
+  const next =
+    new Date(now);
 
-);
+  // 秒・ミリ秒を0にする
+  next.setSeconds(0);
+  next.setMilliseconds(0);
+
+  // 次の5分区切りを求める
+  const remainder =
+    next.getMinutes() % 5;
+
+  if (
+    remainder === 0 &&
+    now.getSeconds() === 0 &&
+    now.getMilliseconds() === 0
+  ) {
+
+    // ちょうど5分区切りならその時刻
+    // ただし初期化処理後に実行されるため、次回へ送る
+    next.setMinutes(
+      next.getMinutes() + 5
+    );
+
+  }
+  else {
+
+    const addMinutes =
+      remainder === 0
+        ? 5
+        : 5 - remainder;
+
+    next.setMinutes(
+      next.getMinutes() + addMinutes
+    );
+
+  }
+
+
+  const waitTime =
+    next.getTime() -
+    now.getTime();
+
+
+  console.log(
+    "次回保存予定：" +
+    next.toLocaleTimeString("ja-JP")
+  );
+
+
+  // 次の5分区切りまで待つ
+  setTimeout(
+    function scheduledSave() {
+
+      sendToSpreadsheet();
+
+      // setIntervalの累積ずれを避けるため、
+      // 毎回次の時計上の5分区切りを再計算する
+      startScheduledSave();
+
+    },
+    waitTime
+  );
+
+}
+
+
+// 保存スケジュール開始
+startScheduledSave();
 
 
 </script>
