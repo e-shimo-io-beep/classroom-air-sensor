@@ -80,359 +80,355 @@
 
 <body>
 
-<h1>教室環境モニター</h1>
+  <h1>教室環境モニター</h1>
 
-<div id="status" class="disconnected">
-  BLEセンサー未接続
-</div>
+  <div id="status" class="disconnected">
+    BLEセンサー未接続
+  </div>
 
-<button id="connectButton" onclick="connectBLE()">
-  センサーに接続
-</button>
+  <button id="connectButton" onclick="connectBLE()">
+    センサーに接続
+  </button>
 
+  <div class="container">
 
-<div class="container">
+    <div class="card">
+      <div class="title">
+        CO₂
+      </div>
 
-  <div class="card">
+      <div class="value">
+        <span id="co2">---</span>
+      </div>
 
-    <div class="title">
-      CO₂
+      <div>
+        ppm
+      </div>
     </div>
 
-    <div class="value">
-      <span id="co2">---</span>
+    <div class="card">
+      <div class="title">
+        温度
+      </div>
+
+      <div class="value">
+        <span id="temperature">---</span>
+      </div>
+
+      <div>
+        ℃
+      </div>
     </div>
 
-    <div>
-      ppm
+    <div class="card">
+      <div class="title">
+        湿度
+      </div>
+
+      <div class="value">
+        <span id="humidity">---</span>
+      </div>
+
+      <div>
+        %
+      </div>
     </div>
 
   </div>
 
-
-  <div class="card">
-
-    <div class="title">
-      温度
-    </div>
-
-    <div class="value">
-      <span id="temperature">---</span>
-    </div>
-
-    <div>
-      ℃
-    </div>
-
+  <div id="updated">
+    最終更新：---
   </div>
 
 
-  <div class="card">
+  <script>
 
-    <div class="title">
-      湿度
-    </div>
+    // ========================================
+    // ESP32側で設定したUUID
+    // ========================================
 
-    <div class="value">
-      <span id="humidity">---</span>
-    </div>
+    const SERVICE_UUID =
+      "12345678-1234-1234-1234-123456789000";
 
-    <div>
-      %
-    </div>
+    const CO2_UUID =
+      "12345678-1234-1234-1234-123456789001";
 
-  </div>
+    const TEMPERATURE_UUID =
+      "12345678-1234-1234-1234-123456789002";
 
-</div>
-
-
-<div id="updated">
-  最終更新：---
-</div>
+    const HUMIDITY_UUID =
+      "12345678-1234-1234-1234-123456789003";
 
 
-<script>
-
-// ========================================
-// ESP32側で設定したUUID
-// ========================================
-
-const SERVICE_UUID =
-  "12345678-1234-1234-1234-123456789000";
-
-const CO2_UUID =
-  "12345678-1234-1234-1234-123456789001";
-
-const TEMPERATURE_UUID =
-  "12345678-1234-1234-1234-123456789002";
-
-const HUMIDITY_UUID =
-  "12345678-1234-1234-1234-123456789003";
+    let bleDevice = null;
 
 
-let bleDevice = null;
+    // ========================================
+    // BLE接続
+    // ========================================
+
+    async function connectBLE() {
+
+      const status =
+        document.getElementById("status");
+
+      const button =
+        document.getElementById("connectButton");
+
+      try {
+
+        // Web Bluetooth対応確認
+        if (!navigator.bluetooth) {
+
+          status.textContent =
+            "このブラウザではWeb Bluetoothが利用できません。";
+
+          status.className =
+            "error";
+
+          return;
+        }
 
 
-// ========================================
-// BLE接続
-// ========================================
+        status.textContent =
+          "Bluetooth機器を検索しています...";
 
-async function connectBLE() {
+        status.className =
+          "disconnected";
 
-  const status =
-    document.getElementById("status");
 
-  const button =
-    document.getElementById("connectButton");
+        // ========================================
+        // Bluetooth機器選択
+        //
+        // テストのため周囲のBLE機器をすべて表示
+        // ========================================
 
-  try {
+        bleDevice =
+          await navigator.bluetooth.requestDevice({
 
-    // Web Bluetooth対応確認
-    if (!navigator.bluetooth) {
+            acceptAllDevices: true,
 
-      status.textContent =
-        "このブラウザではWeb Bluetoothが利用できません。";
+            optionalServices: [
+              SERVICE_UUID
+            ]
 
-      status.className = "error";
+          });
 
-      return;
+
+        status.textContent =
+          "選択した機器へ接続しています...";
+
+
+        // ========================================
+        // GATT接続
+        // ========================================
+
+        const server =
+          await bleDevice.gatt.connect();
+
+
+        status.textContent =
+          "Air Sensor Serviceを確認しています...";
+
+
+        // ========================================
+        // Air Sensor Service取得
+        // ========================================
+
+        const service =
+          await server.getPrimaryService(
+            SERVICE_UUID
+          );
+
+
+        // ========================================
+        // CO₂
+        // ========================================
+
+        const co2Characteristic =
+          await service.getCharacteristic(
+            CO2_UUID
+          );
+
+        await co2Characteristic
+          .startNotifications();
+
+        co2Characteristic
+          .addEventListener(
+            "characteristicvaluechanged",
+            event => {
+
+              const value =
+                readText(event);
+
+              document
+                .getElementById("co2")
+                .textContent = value;
+
+              updateTime();
+
+            }
+          );
+
+
+        // ========================================
+        // 温度
+        // ========================================
+
+        const temperatureCharacteristic =
+          await service.getCharacteristic(
+            TEMPERATURE_UUID
+          );
+
+        await temperatureCharacteristic
+          .startNotifications();
+
+        temperatureCharacteristic
+          .addEventListener(
+            "characteristicvaluechanged",
+            event => {
+
+              const value =
+                readText(event);
+
+              document
+                .getElementById("temperature")
+                .textContent = value;
+
+              updateTime();
+
+            }
+          );
+
+
+        // ========================================
+        // 湿度
+        // ========================================
+
+        const humidityCharacteristic =
+          await service.getCharacteristic(
+            HUMIDITY_UUID
+          );
+
+        await humidityCharacteristic
+          .startNotifications();
+
+        humidityCharacteristic
+          .addEventListener(
+            "characteristicvaluechanged",
+            event => {
+
+              const value =
+                readText(event);
+
+              document
+                .getElementById("humidity")
+                .textContent = value;
+
+              updateTime();
+
+            }
+          );
+
+
+        // ========================================
+        // 接続完了
+        // ========================================
+
+        status.textContent =
+          "● " +
+          (bleDevice.name || "BLE機器") +
+          " 接続済み";
+
+        status.className =
+          "connected";
+
+        button.textContent =
+          "接続済み";
+
+
+        // ========================================
+        // 切断検知
+        // ========================================
+
+        bleDevice.addEventListener(
+          "gattserverdisconnected",
+          onDisconnected
+        );
+
+      }
+
+      catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+          "接続エラー：" +
+          error.message;
+
+        status.className =
+          "error";
+
+      }
+
     }
 
 
-    status.textContent =
-      "センサーを検索しています...";
+    // ========================================
+    // BLE切断時
+    // ========================================
 
-    status.className =
-      "disconnected";
+    function onDisconnected() {
 
+      const status =
+        document.getElementById("status");
 
-    // ----------------------------------------
-    // Bluetooth機器選択
-    // ----------------------------------------
+      status.textContent =
+        "センサーとの接続が切れました";
 
-    bleDevice =
-      await navigator.bluetooth.requestDevice({
+      status.className =
+        "error";
 
-        filters: [
-          {
-            name: "Classroom-AirSensor"
-          }
-        ],
+      document
+        .getElementById("connectButton")
+        .textContent =
+        "再接続";
 
-        optionalServices: [
-          SERVICE_UUID
-        ]
-
-      });
-
-
-    status.textContent =
-      "ESP32へ接続しています...";
-
-
-    // ----------------------------------------
-    // ESP32へGATT接続
-    // ----------------------------------------
-
-    const server =
-      await bleDevice.gatt.connect();
-
-
-    // ----------------------------------------
-    // Air Sensor Service取得
-    // ----------------------------------------
-
-    const service =
-      await server.getPrimaryService(
-        SERVICE_UUID
-      );
+    }
 
 
     // ========================================
-    // CO2
+    // BLEデータを文字列として読み取る
     // ========================================
 
-    const co2Characteristic =
-      await service.getCharacteristic(
-        CO2_UUID
-      );
+    function readText(event) {
 
-    await co2Characteristic
-      .startNotifications();
+      return new TextDecoder()
+        .decode(event.target.value);
 
-    co2Characteristic
-      .addEventListener(
-        "characteristicvaluechanged",
-        event => {
-
-          const value =
-            readText(event);
-
-          document
-            .getElementById("co2")
-            .textContent = value;
-
-          updateTime();
-
-        }
-      );
+    }
 
 
     // ========================================
-    // 温度
+    // 最終更新時刻
     // ========================================
 
-    const temperatureCharacteristic =
-      await service.getCharacteristic(
-        TEMPERATURE_UUID
-      );
+    function updateTime() {
 
-    await temperatureCharacteristic
-      .startNotifications();
+      const now =
+        new Date();
 
-    temperatureCharacteristic
-      .addEventListener(
-        "characteristicvaluechanged",
-        event => {
+      document
+        .getElementById("updated")
+        .textContent =
+        "最終更新：" +
+        now.toLocaleTimeString(
+          "ja-JP"
+        );
 
-          const value =
-            readText(event);
+    }
 
-          document
-            .getElementById("temperature")
-            .textContent = value;
-
-          updateTime();
-
-        }
-      );
-
-
-    // ========================================
-    // 湿度
-    // ========================================
-
-    const humidityCharacteristic =
-      await service.getCharacteristic(
-        HUMIDITY_UUID
-      );
-
-    await humidityCharacteristic
-      .startNotifications();
-
-    humidityCharacteristic
-      .addEventListener(
-        "characteristicvaluechanged",
-        event => {
-
-          const value =
-            readText(event);
-
-          document
-            .getElementById("humidity")
-            .textContent = value;
-
-          updateTime();
-
-        }
-      );
-
-
-    // ----------------------------------------
-    // 接続完了
-    // ----------------------------------------
-
-    status.textContent =
-      "● Classroom-AirSensor 接続済み";
-
-    status.className =
-      "connected";
-
-    button.textContent =
-      "接続済み";
-
-
-    // ----------------------------------------
-    // BLE切断検知
-    // ----------------------------------------
-
-    bleDevice.addEventListener(
-      "gattserverdisconnected",
-      onDisconnected
-    );
-
-  }
-
-  catch(error) {
-
-    console.error(error);
-
-    status.textContent =
-      "接続エラー：" + error.message;
-
-    status.className =
-      "error";
-
-  }
-
-}
-
-
-// ========================================
-// BLE切断時
-// ========================================
-
-function onDisconnected() {
-
-  const status =
-    document.getElementById("status");
-
-  status.textContent =
-    "センサーとの接続が切れました";
-
-  status.className =
-    "error";
-
-  document
-    .getElementById("connectButton")
-    .textContent =
-    "再接続";
-
-}
-
-
-// ========================================
-// BLEデータを文字列として読み取る
-// ========================================
-
-function readText(event) {
-
-  return new TextDecoder()
-    .decode(event.target.value);
-
-}
-
-
-// ========================================
-// 最終更新時刻
-// ========================================
-
-function updateTime() {
-
-  const now =
-    new Date();
-
-  document
-    .getElementById("updated")
-    .textContent =
-      "最終更新：" +
-      now.toLocaleTimeString(
-        "ja-JP"
-      );
-
-}
-
-</script>
+  </script>
 
 </body>
 
