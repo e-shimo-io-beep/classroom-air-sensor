@@ -1133,6 +1133,27 @@ function onDisconnected() {
   }
 
 
+  // ★追加：切断時は最新値をクリアする
+  //
+  // これをしないと、sendToSpreadsheet()側の
+  // 「値が揃っていなければ送信しない」判定が
+  // 効かず、切断前の最後の測定値を
+  // 5分おきにずっと送信し続けてしまう
+  // （＝画面は「切断」と表示されているのに、
+  // 　スプレッドシートだけ更新が続く不具合）
+  currentCO2 =
+    null;
+
+  currentTemperature =
+    null;
+
+  currentHumidity =
+    null;
+
+  currentWBGT =
+    null;
+
+
 }
 
 
