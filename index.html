@@ -114,6 +114,18 @@
       line-height: 1.5;
     }
 
+    /* ★追加：更新停止の警告表示 */
+    .stale-warning {
+      margin-top: 10px;
+      padding: 10px;
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffe08a;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
   </style>
 
 </head>
@@ -285,6 +297,14 @@
 
 
   <!-- ========================================
+       ★追加：更新停止の警告
+       （普段は空。更新が止まったときだけ表示）
+  ========================================= -->
+
+  <div id="staleWarning"></div>
+
+
+  <!-- ========================================
        スプレッドシート保存状態
   ========================================= -->
 
@@ -382,6 +402,14 @@ let currentWBGTRisk =
 
 let bleDevice =
   null;
+
+// ★追加：最後にBLE通知を受け取った時刻（更新停止の監視用）
+let lastNotificationTime =
+  null;
+
+// ★追加：この秒数より長く通知が来なければ「更新停止」とみなす
+const STALE_THRESHOLD_MS =
+  30 * 1000;
 
 
 
@@ -949,6 +977,11 @@ function updateWBGT() {
 function updateTime() {
 
 
+  // ★追加：通知を受け取った時刻を記録（更新停止の監視用）
+  lastNotificationTime =
+    Date.now();
+
+
   const now =
     new Date();
 
@@ -967,6 +1000,86 @@ function updateTime() {
 
 
 }
+
+
+
+// ==================================================
+// ★追加：更新停止の監視
+//
+// CO2/温度/湿度のBLE通知は約5秒ごとに来るはずなので、
+// STALE_THRESHOLD_MS（既定30秒）より長く来ていなければ
+// 「見た目は接続中でも、実際は更新が止まっている」
+// 状態として警告を表示する。
+//
+// 過去に、ESP32を再起動しても直らず、Chromebookページの
+// 再読み込み・再接続で直った不具合があったため、その
+// パターンを早めに気づけるようにするための機能。
+// ==================================================
+
+function checkStaleData() {
+
+  const warningEl =
+    document.getElementById(
+      "staleWarning"
+    );
+
+  if (!warningEl) {
+    return;
+  }
+
+
+  // まだ一度も通知を受け取っていない場合は何もしない
+  if (lastNotificationTime === null) {
+
+    warningEl.textContent =
+      "";
+
+    warningEl.className =
+      "";
+
+    return;
+  }
+
+
+  const elapsedMs =
+    Date.now() -
+    lastNotificationTime;
+
+
+  if (elapsedMs > STALE_THRESHOLD_MS) {
+
+    const elapsedSec =
+      Math.floor(
+        elapsedMs / 1000
+      );
+
+    warningEl.textContent =
+      "⚠ センサーからの更新が" +
+      elapsedSec +
+      "秒止まっています。表示が古い可能性があります。" +
+      "改善しない場合は、ページの再読み込み・再接続をお試しください。";
+
+    warningEl.className =
+      "stale-warning";
+
+  } else {
+
+    warningEl.textContent =
+      "";
+
+    warningEl.className =
+      "";
+
+  }
+
+}
+
+
+// 5秒ごとに更新停止をチェック
+setInterval(
+  checkStaleData,
+  5000
+);
 
 
 
@@ -997,6 +1110,27 @@ function onDisconnected() {
     )
     .textContent =
     "再接続";
+
+
+  // ★追加：切断が分かっているときは
+  // 更新停止の警告は表示しない（二重表示を避けるため）
+  lastNotificationTime =
+    null;
+
+  const warningEl =
+    document.getElementById(
+      "staleWarning"
+    );
+
+  if (warningEl) {
+
+    warningEl.textContent =
+      "";
+
+    warningEl.className =
+      "";
+
+  }
 
 
 }
