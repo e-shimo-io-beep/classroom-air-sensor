@@ -352,6 +352,10 @@ const TEMPERATURE_UUID =
 const HUMIDITY_UUID =
   "12345678-1234-1234-1234-123456789003";
 
+// ★追加：時刻同期用（Chromebook -> ESP32 WRITE専用）
+const TIME_SYNC_UUID =
+  "12345678-1234-1234-1234-123456789004";
+
 
 
 // ==================================================
@@ -483,6 +487,73 @@ async function connectBLE() {
       await server.getPrimaryService(
         SERVICE_UUID
       );
+
+
+
+    // ==================================================
+    // ★追加：時刻同期（Chromebook -> ESP32）
+    //
+    // 接続直後にUnix Epoch秒をESP32へ送る。
+    // 失敗してもCO2/温度/湿度の受信は継続させたいため、
+    // ここだけ個別にtry/catchする。
+    // ==================================================
+
+    try {
+
+      const timeSyncCharacteristic =
+        await service.getCharacteristic(
+          TIME_SYNC_UUID
+        );
+
+      const epoch =
+        Math.floor(
+          Date.now() / 1000
+        );
+
+      const encoder =
+        new TextEncoder();
+
+      const epochBytes =
+        encoder.encode(
+          String(epoch)
+        );
+
+      // Chrome/ChromeOSのバージョンにより
+      // writeValueWithResponseが無い場合があるため、
+      // 使えるほうを使う
+      if (timeSyncCharacteristic.writeValueWithResponse) {
+
+        await timeSyncCharacteristic
+          .writeValueWithResponse(
+            epochBytes
+          );
+
+      } else {
+
+        await timeSyncCharacteristic
+          .writeValue(
+            epochBytes
+          );
+
+      }
+
+      console.log(
+        "時刻同期を送信しました。Epoch: " +
+        epoch
+      );
+
+    }
+
+    catch (timeSyncError) {
+
+      // 時刻同期に失敗しても致命的ではないため、
+      // ログにだけ残して処理を続ける
+      console.error(
+        "時刻同期エラー：",
+        timeSyncError
+      );
+
+    }
 
 
 
@@ -715,7 +786,6 @@ function readText(event) {
     .decode(
       event.target.value
     );
-
 
 }
 
@@ -1339,5 +1409,4 @@ startScheduledSave();
 
 
 </body>
-
 </html>
